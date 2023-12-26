@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <iostream>
 #include "modules/meta/timer_module.hpp"
+#include "modules/meta/types.hpp"
 #include "settings.hpp"
 
 POLYBAR_NS
@@ -13,13 +14,13 @@ namespace modules {
   enum class memory_state { NORMAL = 0, WARN };
   class memory_module : public timer_module<memory_module> {
    public:
-    explicit memory_module(const bar_settings&, string);
+    explicit memory_module(const bar_settings&, string, const config&);
 
     bool update();
     string get_format() const;
     bool build(builder* builder, const string& tag) const;
 
-    static constexpr auto TYPE = "internal/memory";
+    static constexpr auto TYPE = MEMORY_TYPE;
     static constexpr auto EVENT_TOGGLE = "toggle";
 
    protected:
@@ -41,8 +42,8 @@ namespace modules {
     static constexpr const char* TAG_RAMP_SWAP_FREE{"<ramp-swap-free>"};
     static constexpr const char* FORMAT_WARN{"format-warn"};
 
-    label_t m_label_mem_render;
     label_t m_label_mem;
+    label_t m_label_mem_render;
     label_t m_label_mem_alt;
     label_t m_labelwarn;
     progressbar_t m_bar_memused;
@@ -52,8 +53,8 @@ namespace modules {
     int m_perc_memused_warn{90};
     ramp_t m_ramp_memused;
     ramp_t m_ramp_memfree;
-    label_t m_label_swap_render;
     label_t m_label_swap;
+    label_t m_label_swap_render;
     label_t m_label_swap_alt;
     progressbar_t m_bar_swapused;
     progressbar_t m_bar_swapfree;

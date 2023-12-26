@@ -26,8 +26,13 @@ namespace modules {
    * Bootstrap the module by reading config values and
    * setting up required components
    */
-  fs_module::fs_module(const bar_settings& bar, string name_) : timer_module<fs_module>(bar, move(name_)) {
-    m_mountpoints = m_conf.get_list(name(), "mount");
+  fs_module::fs_module(const bar_settings& bar, string name_, const config& config)
+      : timer_module<fs_module>(bar, move(name_), config) {
+    m_mountpoints = m_conf.get_list(name(), "mount", {});
+    if (m_mountpoints.empty()) {
+      m_log.info("%s: No mountpoints specified, using fallback \"/\"", name());
+      m_mountpoints.emplace_back("/");
+    }
     m_remove_unmounted = m_conf.get(name(), "remove-unmounted", m_remove_unmounted);
     m_perc_used_warn = m_conf.get(name(), "warn-percentage", 90);
     m_fixed = m_conf.get(name(), "fixed-values", m_fixed);
@@ -191,8 +196,6 @@ namespace modules {
       label->replace_token("%used%", string_util::filesize(mount->bytes_used, m_fixed ? 2 : 0, m_fixed, m_bar.locale));
     };
 
-
-
     if(m_labelmounted_render){
       replace_tokens(m_labelmounted_render);
     }
@@ -205,7 +208,6 @@ namespace modules {
       builder->node(m_rampcapacity->get_by_percentage_with_borders(mount->percentage_free, 0, m_perc_used_warn));
     } else if (tag == TAG_LABEL_MOUNTED) {
       builder->action(mousebtn::LEFT, *this, EVENT_TOGGLE, "", m_labelmounted_render);
-      // builder->node(m_labelmounted);
     } else if (tag == TAG_LABEL_WARN) {
       replace_tokens(m_labelwarn);
       builder->node(m_labelwarn);

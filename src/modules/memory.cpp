@@ -15,7 +15,8 @@ POLYBAR_NS
 namespace modules {
   template class module<memory_module>;
 
-  memory_module::memory_module(const bar_settings& bar, string name_) : timer_module<memory_module>(bar, move(name_)) {
+  memory_module::memory_module(const bar_settings& bar, string name_, const config& config)
+      : timer_module<memory_module>(bar, move(name_), config) {
     set_interval(1s);
     m_router->register_action(EVENT_TOGGLE, [this]() { action_toggle(); });
     m_perc_memused_warn = m_conf.get(name(), "warn-percentage", 90);
@@ -171,10 +172,8 @@ namespace modules {
       builder->node(m_bar_memfree->output(m_perc_memfree));
     } else if (tag == TAG_LABEL_MEM) {
       builder->action(mousebtn::LEFT, *this, EVENT_TOGGLE, "", m_label_mem_render);
-      // builder->node(m_label);
     } else if (tag == TAG_LABEL_SWAP) {
       builder->action(mousebtn::LEFT, *this, EVENT_TOGGLE, "", m_label_swap_render);
-      // builder->node(m_label);
     } else if (tag == TAG_LABEL_WARN) {
       builder->node(m_labelwarn);
     } else if (tag == TAG_RAMP_FREE) {

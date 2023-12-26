@@ -14,7 +14,8 @@ POLYBAR_NS
 namespace modules {
   template class module<cpu_module>;
 
-  cpu_module::cpu_module(const bar_settings& bar, string name_) : timer_module<cpu_module>(bar, move(name_)) {
+  cpu_module::cpu_module(const bar_settings& bar, string name_, const config& config)
+      : timer_module<cpu_module>(bar, move(name_), config) {
     set_interval(1s);
     m_router->register_action(EVENT_TOGGLE, [this]() { action_toggle(); });
     m_totalwarn = m_conf.get(name(), "warn-percentage", m_totalwarn);
@@ -107,12 +108,7 @@ namespace modules {
 
   bool cpu_module::build(builder* builder, const string& tag) const {
     if (tag == TAG_LABEL) {
-      // if (m_label_alt.has_token()) {
         builder->action(mousebtn::LEFT, *this, EVENT_TOGGLE, "", m_label_render);
-      // } else {
-      //   builder->node(m_label);
-      // }
-      // builder->node(m_label);
     } else if (tag == TAG_LABEL_WARN) {
       builder->node(m_labelwarn);
     } else if (tag == TAG_BAR_LOAD) {

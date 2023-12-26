@@ -5,6 +5,7 @@
 #include <iostream>
 #include "components/config.hpp"
 #include "modules/meta/timer_module.hpp"
+#include "modules/meta/types.hpp"
 #include "settings.hpp"
 
 POLYBAR_NS
@@ -38,15 +39,16 @@ namespace modules {
    */
   class fs_module : public timer_module<fs_module> {
    public:
-    explicit fs_module(const bar_settings&, string);
-    static constexpr auto EVENT_TOGGLE = "toggle";
+    explicit fs_module(const bar_settings&, string, const config&);
+    
 
     bool update();
     string get_format() const;
     string get_output();
     bool build(builder* builder, const string& tag) const;
 
-    static constexpr auto TYPE = "internal/fs";
+    static constexpr auto TYPE = FS_TYPE;
+    static constexpr auto EVENT_TOGGLE = "toggle";
 
    protected:
     void action_toggle();
@@ -63,9 +65,9 @@ namespace modules {
     static constexpr auto TAG_BAR_FREE = "<bar-free>";
     static constexpr auto TAG_RAMP_CAPACITY = "<ramp-capacity>";
 
-    label_t m_labelmounted_render;
     label_t m_labelmounted;
     label_t m_labelmounted_alt;
+    label_t m_labelmounted_render;
     label_t m_labelunmounted;
     label_t m_labelwarn;
     progressbar_t m_barused;
