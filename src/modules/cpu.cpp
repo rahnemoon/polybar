@@ -14,13 +14,13 @@ POLYBAR_NS
 namespace modules {
   template class module<cpu_module>;
 
-  cpu_module::cpu_module(const bar_settings& bar, string name_, const config& config)
-      : timer_module<cpu_module>(bar, move(name_), config) {
+  cpu_module::cpu_module(const bar_settings& bar, string name_) : timer_module<cpu_module>(bar, move(name_)) {
     set_interval(1s);
+    m_router->register_action(EVENT_TOGGLE, [this]() { action_toggle(); });
     m_totalwarn = m_conf.get(name(), "warn-percentage", m_totalwarn);
     m_ramp_padding = m_conf.get(name(), "ramp-coreload-spacing", m_ramp_padding);
 
-    m_formatter->add(DEFAULT_FORMAT, TAG_LABEL, {TAG_LABEL, TAG_BAR_LOAD, TAG_RAMP_LOAD, TAG_RAMP_LOAD_PER_CORE});
+    m_formatter->add(DEFAULT_FORMAT, TAG_LABEL, {TAG_LABEL, TAG_LABEL_ALT, TAG_BAR_LOAD, TAG_RAMP_LOAD, TAG_RAMP_LOAD_PER_CORE});
     m_formatter->add_optional(FORMAT_WARN, {TAG_LABEL_WARN, TAG_BAR_LOAD, TAG_RAMP_LOAD, TAG_RAMP_LOAD_PER_CORE});
 
     // warmup cpu times
@@ -29,6 +29,9 @@ namespace modules {
 
     if (m_formatter->has(TAG_LABEL)) {
       m_label = load_optional_label(m_conf, name(), TAG_LABEL, "%percentage%%");
+    }
+    if (m_formatter->has(TAG_LABEL_ALT)) {
+      m_label_alt = load_optional_label(m_conf, name(), TAG_LABEL_ALT, "%percentage_used%%");
     }
     if (m_formatter->has(TAG_LABEL_WARN)) {
       m_labelwarn = load_optional_label(m_conf, name(), TAG_LABEL_WARN, "%percentage%%");
@@ -57,13 +60,15 @@ namespace modules {
       return false;
     }
 
+    m_label_render = m_toggled ? m_label_alt : m_label;
+
     vector<string> percentage_cores;
     for (size_t i = 0; i < cores_n; i++) {
       auto load = get_load(i);
       m_total += load;
       m_load.emplace_back(load);
 
-      if (m_label || m_labelwarn) {
+      if (m_label_render || m_labelwarn) {
         percentage_cores.emplace_back(to_string(static_cast<int>(load + 0.5)));
       }
     }
@@ -82,8 +87,8 @@ namespace modules {
       }
     };
 
-    if (m_label) {
-      replace_tokens(m_label);
+    if (m_label_render) {
+      replace_tokens(m_label_render);
     }
     if (m_labelwarn) {
       replace_tokens(m_labelwarn);
@@ -102,7 +107,12 @@ namespace modules {
 
   bool cpu_module::build(builder* builder, const string& tag) const {
     if (tag == TAG_LABEL) {
-      builder->node(m_label);
+      // if (m_label_alt.has_token()) {
+        builder->action(mousebtn::LEFT, *this, EVENT_TOGGLE, "", m_label_render);
+      // } else {
+      //   builder->node(m_label);
+      // }
+      // builder->node(m_label);
     } else if (tag == TAG_LABEL_WARN) {
       builder->node(m_labelwarn);
     } else if (tag == TAG_BAR_LOAD) {
@@ -178,6 +188,11 @@ namespace modules {
     float percentage = 100.0f * (diff - (last_idle - prev_idle)) / diff;
 
     return math_util::cap<float>(percentage, 0, 100);
+  }
+
+  void cpu_module::action_toggle() {
+    m_toggled = !m_toggled;
+    wakeup();
   }
 }  // namespace modules
 

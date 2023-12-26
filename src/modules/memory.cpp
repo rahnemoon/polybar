@@ -15,18 +15,28 @@ POLYBAR_NS
 namespace modules {
   template class module<memory_module>;
 
-  memory_module::memory_module(const bar_settings& bar, string name_, const config& config)
-      : timer_module<memory_module>(bar, move(name_), config) {
+  memory_module::memory_module(const bar_settings& bar, string name_) : timer_module<memory_module>(bar, move(name_)) {
     set_interval(1s);
+    m_router->register_action(EVENT_TOGGLE, [this]() { action_toggle(); });
     m_perc_memused_warn = m_conf.get(name(), "warn-percentage", 90);
 
-    m_formatter->add(DEFAULT_FORMAT, TAG_LABEL, {TAG_LABEL, TAG_BAR_USED, TAG_BAR_FREE, TAG_RAMP_USED, TAG_RAMP_FREE,
-                                                 TAG_BAR_SWAP_USED, TAG_BAR_SWAP_FREE, TAG_RAMP_SWAP_USED, TAG_RAMP_SWAP_FREE});
+    m_formatter->add(DEFAULT_FORMAT, TAG_LABEL_MEM, {TAG_LABEL_MEM, TAG_LABEL_MEM_ALT, TAG_LABEL_SWAP, TAG_LABEL_SWAP_ALT,
+                                                 TAG_BAR_USED, TAG_BAR_FREE, TAG_RAMP_USED, TAG_RAMP_FREE,TAG_BAR_SWAP_USED,
+                                                 TAG_BAR_SWAP_FREE, TAG_RAMP_SWAP_USED, TAG_RAMP_SWAP_FREE});
     m_formatter->add_optional(FORMAT_WARN, {TAG_LABEL_WARN, TAG_BAR_USED, TAG_BAR_FREE, TAG_RAMP_USED, TAG_RAMP_FREE,
                                                  TAG_BAR_SWAP_USED, TAG_BAR_SWAP_FREE, TAG_RAMP_SWAP_USED, TAG_RAMP_SWAP_FREE});
 
-    if (m_formatter->has(TAG_LABEL)) {
-      m_label = load_optional_label(m_conf, name(), TAG_LABEL, "%percentage_used%%");
+    if (m_formatter->has(TAG_LABEL_MEM)) {
+      m_label_mem = load_optional_label(m_conf, name(), TAG_LABEL_MEM, "%percentage_used%%");
+    }
+    if (m_formatter->has(TAG_LABEL_MEM_ALT)) {
+      m_label_mem_alt = load_optional_label(m_conf, name(), TAG_LABEL_MEM_ALT, "%percentage_free%%");
+    }
+    if (m_formatter->has(TAG_LABEL_SWAP)) {
+      m_label_swap = load_optional_label(m_conf, name(), TAG_LABEL_SWAP, "%percentage_swap_used%%");
+    }
+    if (m_formatter->has(TAG_LABEL_SWAP_ALT)) {
+      m_label_swap_alt = load_optional_label(m_conf, name(), TAG_LABEL_SWAP_ALT, "%percentage_swap_free%%");
     }
     if (m_formatter->has(TAG_LABEL_WARN)) {
       m_labelwarn = load_optional_label(m_conf, name(), TAG_LABEL_WARN, "%percentage_used%%");
@@ -128,8 +138,15 @@ namespace modules {
       label->replace_token("%swap_used%", string_util::filesize_gib_mib(kb_swap_total - kb_swap_free, 0, 2, m_bar.locale));
     };
 
-    if (m_label) {
-      replace_tokens(m_label);
+    m_label_mem_render = m_toggled ? m_label_mem_alt : m_label_mem;
+    m_label_swap_render = m_toggled ? m_label_swap_alt : m_label_swap;
+
+    if (m_label_mem_render) {
+      replace_tokens(m_label_mem_render);
+    }
+
+    if (m_label_swap_render) {
+      replace_tokens(m_label_swap_render);
     }
 
     if (m_labelwarn) {
@@ -152,8 +169,12 @@ namespace modules {
       builder->node(m_bar_memused->output(m_perc_memused));
     } else if (tag == TAG_BAR_FREE) {
       builder->node(m_bar_memfree->output(m_perc_memfree));
-    } else if (tag == TAG_LABEL) {
-      builder->node(m_label);
+    } else if (tag == TAG_LABEL_MEM) {
+      builder->action(mousebtn::LEFT, *this, EVENT_TOGGLE, "", m_label_mem_render);
+      // builder->node(m_label);
+    } else if (tag == TAG_LABEL_SWAP) {
+      builder->action(mousebtn::LEFT, *this, EVENT_TOGGLE, "", m_label_swap_render);
+      // builder->node(m_label);
     } else if (tag == TAG_LABEL_WARN) {
       builder->node(m_labelwarn);
     } else if (tag == TAG_RAMP_FREE) {
@@ -172,6 +193,10 @@ namespace modules {
       return false;
     }
     return true;
+  }
+  void memory_module::action_toggle() {
+    m_toggled = !m_toggled;
+    wakeup();
   }
 }
 

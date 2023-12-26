@@ -26,27 +26,26 @@ namespace modules {
    * Bootstrap the module by reading config values and
    * setting up required components
    */
-  fs_module::fs_module(const bar_settings& bar, string name_, const config& config)
-      : timer_module<fs_module>(bar, move(name_), config) {
-    m_mountpoints = m_conf.get_list(name(), "mount", {});
-    if (m_mountpoints.empty()) {
-      m_log.info("%s: No mountpoints specified, using fallback \"/\"", name());
-      m_mountpoints.emplace_back("/");
-    }
+  fs_module::fs_module(const bar_settings& bar, string name_) : timer_module<fs_module>(bar, move(name_)) {
+    m_mountpoints = m_conf.get_list(name(), "mount");
     m_remove_unmounted = m_conf.get(name(), "remove-unmounted", m_remove_unmounted);
     m_perc_used_warn = m_conf.get(name(), "warn-percentage", 90);
     m_fixed = m_conf.get(name(), "fixed-values", m_fixed);
     m_spacing = m_conf.get(name(), "spacing", m_spacing);
     set_interval(30s);
+    m_router->register_action(EVENT_TOGGLE, [this]() { action_toggle(); });
 
     // Add formats and elements
     m_formatter->add(
-        FORMAT_MOUNTED, TAG_LABEL_MOUNTED, {TAG_LABEL_MOUNTED, TAG_BAR_FREE, TAG_BAR_USED, TAG_RAMP_CAPACITY});
+        FORMAT_MOUNTED, TAG_LABEL_MOUNTED, {TAG_LABEL_MOUNTED, TAG_LABEL_MOUNTED_ALT, TAG_BAR_FREE, TAG_BAR_USED, TAG_RAMP_CAPACITY});
     m_formatter->add_optional(FORMAT_WARN, {TAG_LABEL_WARN, TAG_BAR_FREE, TAG_BAR_USED, TAG_RAMP_CAPACITY});
     m_formatter->add(FORMAT_UNMOUNTED, TAG_LABEL_UNMOUNTED, {TAG_LABEL_UNMOUNTED});
 
     if (m_formatter->has(TAG_LABEL_MOUNTED)) {
       m_labelmounted = load_optional_label(m_conf, name(), TAG_LABEL_MOUNTED, "%mountpoint% %percentage_free%%");
+    }
+    if (m_formatter->has(TAG_LABEL_MOUNTED_ALT)) {
+      m_labelmounted_alt = load_optional_label(m_conf, name(), TAG_LABEL_MOUNTED_ALT, "%mountpoint% %percentage_used%%");
     }
     if (m_formatter->has(TAG_LABEL_WARN)) {
       m_labelwarn = load_optional_label(m_conf, name(), TAG_LABEL_WARN, "%mountpoint% %percentage_free%%");
@@ -133,6 +132,8 @@ namespace modules {
       m_mounts.erase(new_end, m_mounts.end());
     }
 
+    m_labelmounted_render = m_toggled ? m_labelmounted_alt : m_labelmounted;
+
     return true;
   }
 
@@ -190,6 +191,12 @@ namespace modules {
       label->replace_token("%used%", string_util::filesize(mount->bytes_used, m_fixed ? 2 : 0, m_fixed, m_bar.locale));
     };
 
+
+
+    if(m_labelmounted_render){
+      replace_tokens(m_labelmounted_render);
+    }
+
     if (tag == TAG_BAR_FREE) {
       builder->node(m_barfree->output(mount->percentage_free));
     } else if (tag == TAG_BAR_USED) {
@@ -197,8 +204,8 @@ namespace modules {
     } else if (tag == TAG_RAMP_CAPACITY) {
       builder->node(m_rampcapacity->get_by_percentage_with_borders(mount->percentage_free, 0, m_perc_used_warn));
     } else if (tag == TAG_LABEL_MOUNTED) {
-      replace_tokens(m_labelmounted);
-      builder->node(m_labelmounted);
+      builder->action(mousebtn::LEFT, *this, EVENT_TOGGLE, "", m_labelmounted_render);
+      // builder->node(m_labelmounted);
     } else if (tag == TAG_LABEL_WARN) {
       replace_tokens(m_labelwarn);
       builder->node(m_labelwarn);
@@ -211,6 +218,10 @@ namespace modules {
     }
 
     return true;
+  }
+  void fs_module::action_toggle() {
+    m_toggled = !m_toggled;
+    wakeup();
   }
 } // namespace modules
 

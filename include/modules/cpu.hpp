@@ -1,7 +1,9 @@
 #pragma once
 
+#include <atomic>
+#include <iomanip>
+#include <iostream>
 #include "modules/meta/timer_module.hpp"
-#include "modules/meta/types.hpp"
 #include "settings.hpp"
 
 POLYBAR_NS
@@ -21,27 +23,32 @@ namespace modules {
 
   class cpu_module : public timer_module<cpu_module> {
    public:
-    explicit cpu_module(const bar_settings&, string, const config&);
+    explicit cpu_module(const bar_settings&, string);
 
     bool update();
     string get_format() const;
     bool build(builder* builder, const string& tag) const;
 
-    static constexpr auto TYPE = CPU_TYPE;
+    static constexpr auto TYPE = "internal/cpu";
+    static constexpr auto EVENT_TOGGLE = "toggle";
 
    protected:
     bool read_values();
     float get_load(size_t core) const;
+    void action_toggle();
 
    private:
     static constexpr auto TAG_LABEL = "<label>";
+    static constexpr auto TAG_LABEL_ALT = "<label-alt>";
     static constexpr auto TAG_LABEL_WARN = "<label-warn>";
     static constexpr auto TAG_BAR_LOAD = "<bar-load>";
     static constexpr auto TAG_RAMP_LOAD = "<ramp-load>";
     static constexpr auto TAG_RAMP_LOAD_PER_CORE = "<ramp-coreload>";
     static constexpr auto FORMAT_WARN = "format-warn";
 
+    label_t m_label_render;
     label_t m_label;
+    label_t m_label_alt;
     label_t m_labelwarn;
     progressbar_t m_barload;
     ramp_t m_rampload;
@@ -54,6 +61,8 @@ namespace modules {
     float m_totalwarn = 80;
     float m_total = 0;
     vector<float> m_load;
+
+    std::atomic<bool> m_toggled{false};
   };
 }  // namespace modules
 
